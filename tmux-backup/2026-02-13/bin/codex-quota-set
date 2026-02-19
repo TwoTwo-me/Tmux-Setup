@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+snapshot_file="${CODEX_QUOTA_FILE:-$HOME/.cache/codex_quota_status.txt}"
+mkdir -p "$(dirname "$snapshot_file")"
+
+if [[ "$#" -eq 0 ]]; then
+    printf 'Usage: codex-quota-set "Local 210/1500 Cloud 44/400 Review 90/250"\n' >&2
+    exit 1
+fi
+
+printf '%s\n' "$*" >"$snapshot_file"
+printf 'Saved Codex quota snapshot: %s\n' "$*"

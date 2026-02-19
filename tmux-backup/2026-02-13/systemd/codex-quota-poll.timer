@@ -1,0 +1,11 @@
+[Unit]
+Description=Periodic Codex quota polling timer
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=5min
+Persistent=true
+Unit=codex-quota-poll.service
+
+[Install]
+WantedBy=timers.target

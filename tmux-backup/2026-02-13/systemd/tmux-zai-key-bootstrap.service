@@ -1,0 +1,13 @@
+[Unit]
+Description=Bootstrap ZAI key into tmux web session
+After=ttyd-tmux.service
+Wants=ttyd-tmux.service
+
+[Service]
+Type=oneshot
+Environment=TMUX_BOOT_SESSION=web
+Environment=TMUX_BOOT_WAIT_SEC=45
+ExecStart=/root/.local/bin/tmux-boot-key-sync.sh
+
+[Install]
+WantedBy=multi-user.target

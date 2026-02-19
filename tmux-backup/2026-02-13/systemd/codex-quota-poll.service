@@ -1,0 +1,12 @@
+[Unit]
+Description=Poll Codex usage snapshot for tmux quota line
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+Environment=HOME=/root
+Environment=OPENCODE_BIN=/root/.opencode/bin/opencode
+Environment=CODEX_STATS_MODEL=openai/gpt-5.3-codex
+Environment=CODEX_STATS_DAYS=1
+ExecStart=/root/.local/bin/codex-quota-poll.sh
