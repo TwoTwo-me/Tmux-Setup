@@ -22,7 +22,7 @@ tmux-backup/2026-02-13/
 │  ├─ tmux-zai-quota.sh
 │  ├─ tmux-load-opencode-key.sh
 │  ├─ tmux-status-click.sh
-│  └─ ... (총 15개)
+│  └─ ... (총 16개)
 └─ systemd/
    ├─ ttyd-tmux.service
    ├─ tmux-zai-key-bootstrap.service
@@ -39,6 +39,7 @@ tmux-backup/2026-02-13/
 - 이 저장소에는 실제 API 키/토큰 값을 포함하지 않습니다.
 - 인증 데이터는 아래 외부 파일에서 읽어옵니다.
   - `/root/.local/share/opencode/auth.json`
+  - `/root/.codex/auth.json` (`codex login` 사용 시)
   - `pass` 저장소(`pass show api/zai`)
 - 따라서 복구 후 인증이 안 되어 있으면 쿼터 영역은 `login needed` 또는 `set ZAI_API_KEY`로 표시될 수 있습니다.
 
@@ -76,7 +77,15 @@ tmux source-file /root/.tmux.conf || true
 - 보안: 인증 파일 내용 출력/로그 노출 금지
 - 검증: 적용 후 서비스/옵션 확인 명령까지 실행
 
-### 5.2 AI가 실행할 체크 + 적용 절차
+### 5.2 설치 전 필수 질문 (반드시 먼저 질문)
+
+AI는 설치를 시작하기 전에 아래 3가지를 **반드시 먼저 질문**하고 답변을 확정해야 합니다.
+
+1. Codex 쿼터를 표시할까요? (`yes`/`no`)
+2. (1이 `yes`인 경우만) Codex 인증정보를 어디서 읽을까요? (`codex-cli`/`opencode`)
+3. Z.AI 쿼터를 표시할까요? (`yes`/`no`)
+
+### 5.3 AI가 실행할 체크 + 적용 절차
 
 ```bash
 set -euo pipefail
@@ -88,33 +97,58 @@ command -v systemctl >/dev/null
 command -v jq >/dev/null || true
 command -v curl >/dev/null || true
 
+# A) 사용자 답변 입력 (반드시 5.2 질문에 대한 확정값 사용)
+SHOW_CODEX="yes"              # yes | no
+CODEX_AUTH_SOURCE="codex-cli" # codex-cli | opencode (SHOW_CODEX=yes 일 때만 의미 있음)
+SHOW_ZAI="yes"                # yes | no
+
 # 1) 파일 배치
 install -d -m 755 /root/.local/bin
 cp tmux-backup/2026-02-13/home/tmux.conf /root/.tmux.conf
 cp tmux-backup/2026-02-13/bin/* /root/.local/bin/
-chmod +x /root/.local/bin/tmux-*.sh /root/.local/bin/codex-quota-poll.sh /root/.local/bin/codex-quota-set
+chmod +x /root/.local/bin/tmux-*.sh /root/.local/bin/codex-quota-poll.sh /root/.local/bin/codex-quota-set /root/.local/bin/tmux-configure-quota-visibility.sh
 
 # 2) systemd 배치
 cp tmux-backup/2026-02-13/systemd/*.service /etc/systemd/system/
 cp tmux-backup/2026-02-13/systemd/*.timer /etc/systemd/system/
 systemctl daemon-reload
 
-# 3) 서비스 활성화
-systemctl enable --now ttyd-tmux.service tmux-zai-key-bootstrap.service
-# 필요할 때만:
-systemctl enable --now codex-quota-poll.timer
+# 3) 기본 서비스 활성화
+systemctl enable --now ttyd-tmux.service
 
-# 4) tmux 반영
+# 4) 답변 기반 quota/auth/ZAI 설정 반영
+if [[ "$SHOW_CODEX" == "yes" ]]; then
+  /root/.local/bin/tmux-configure-quota-visibility.sh \
+    --show-codex yes \
+    --codex-auth-source "$CODEX_AUTH_SOURCE" \
+    --show-zai "$SHOW_ZAI"
+else
+  /root/.local/bin/tmux-configure-quota-visibility.sh \
+    --show-codex no \
+    --show-zai "$SHOW_ZAI"
+fi
+
+# 5) 레거시 codex poll timer(선택)
+if [[ "$SHOW_CODEX" == "yes" ]]; then
+  systemctl enable --now codex-quota-poll.timer || true
+else
+  systemctl disable --now codex-quota-poll.timer || true
+fi
+
+# 6) tmux 반영
 tmux source-file /root/.tmux.conf || true
 
-# 5) 검증
-systemctl is-active ttyd-tmux.service tmux-zai-key-bootstrap.service
+# 7) 검증
+systemctl is-active ttyd-tmux.service
+systemctl is-enabled tmux-zai-key-bootstrap.service || true
 tmux show-options -g | grep -E '^base-index|^renumber-windows|^status |^status-format\[[0-9]+\]|^mouse'
+tmux show-options -gqv status-format[0]
+tmux show-environment -g CODEX_AUTH_FILE || true
 tmux list-keys -T root | grep MouseDown1Status
 tmux list-keys -T prefix | grep 'bind-key -T prefix g '
 ```
 
-### 5.3 실패 시 AI가 보고해야 할 항목
+### 5.4 실패 시 AI가 보고해야 할 항목
 
 - 어떤 명령이 실패했는지
 - 실패 원인(권한/패키지 누락/서비스 이름 충돌 등)
@@ -126,6 +160,7 @@ tmux list-keys -T prefix | grep 'bind-key -T prefix g '
 
 ```text
 /root/Tmux-Setup/README.md를 기준으로 이 저장소의 tmux 백업을 현재 시스템에 적용해줘.
+설치 시작 전에 README 5.2의 3가지 질문을 먼저 사용자에게 하고 답변을 확정한 뒤 진행해.
 반드시 "5. AI Agent 실행 가이드" 절차대로 실행하고, 각 단계 결과를 요약해.
 민감정보 값은 출력하지 말고, 마지막에 검증 명령 결과(성공/실패)만 보고해.
 실패가 있으면 원인과 재시도 최소 조치를 제시해.
@@ -140,4 +175,3 @@ tmux show-environment -g ZAI_API_KEY
 /root/.local/bin/tmux-zai-quota.sh
 /root/.local/bin/tmux-codex-quota.sh
 ```
-

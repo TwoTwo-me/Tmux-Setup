@@ -86,6 +86,33 @@ load_auth_value() {
     jq -r "$jq_filter" "$auth_file" 2>/dev/null || true
 }
 
+select_auth_file() {
+    local data_home="$1"
+    local home_dir="$2"
+    local explicit="${CODEX_AUTH_FILE:-}"
+    local -a candidates
+    local candidate
+
+    if [[ -n "$explicit" ]]; then
+        printf '%s' "$explicit"
+        return
+    fi
+
+    candidates=(
+        "$data_home/opencode/auth.json"
+        "$home_dir/.codex/auth.json"
+    )
+
+    for candidate in "${candidates[@]}"; do
+        if [[ -f "$candidate" ]]; then
+            printf '%s' "$candidate"
+            return
+        fi
+    done
+
+    printf '%s' "${candidates[0]}"
+}
+
 fetch_payload() {
     local access_token="$1"
     local account_id="$2"
@@ -190,16 +217,16 @@ if ! command -v jq >/dev/null 2>&1 || ! command -v curl >/dev/null 2>&1; then
 fi
 
 data_home="${XDG_DATA_HOME:-$home_dir/.local/share}"
-auth_file="${CODEX_AUTH_FILE:-$data_home/opencode/auth.json}"
+auth_file="$(select_auth_file "$data_home" "$home_dir")"
 
 access_token="${CODEX_ACCESS_TOKEN:-}"
 account_id="${CODEX_ACCOUNT_ID:-}"
 
 if [[ -z "$access_token" && -f "$auth_file" ]]; then
-    access_token="$(load_auth_value "$auth_file" '.openai.access // .codex.access // .chatgpt.access // empty')"
+    access_token="$(load_auth_value "$auth_file" '.openai.access // .codex.access // .chatgpt.access // .tokens.access_token // empty')"
 fi
 if [[ -z "$account_id" && -f "$auth_file" ]]; then
-    account_id="$(load_auth_value "$auth_file" '.openai.accountId // .codex.accountId // .chatgpt.accountId // empty')"
+    account_id="$(load_auth_value "$auth_file" '.openai.accountId // .codex.accountId // .chatgpt.accountId // .tokens.account_id // .tokens.accountId // empty')"
 fi
 
 if [[ -z "$access_token" ]]; then
