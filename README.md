@@ -51,6 +51,9 @@ tmux-backup/2026-02-13/
 set -euo pipefail
 cd /root/Tmux-Setup
 
+# yes: tmux 웹(ttyd-tmux) 사용 / no: 패키지 기본 ttyd 사용
+USE_TMUX_WEB="yes"
+
 install -d -m 755 /root/.local/bin
 cp tmux-backup/2026-02-13/home/tmux.conf /root/.tmux.conf
 cp tmux-backup/2026-02-13/bin/* /root/.local/bin/
@@ -58,9 +61,18 @@ chmod +x /root/.local/bin/tmux-*.sh /root/.local/bin/codex-quota-poll.sh /root/.
 
 cp tmux-backup/2026-02-13/systemd/*.service /etc/systemd/system/
 cp tmux-backup/2026-02-13/systemd/*.timer /etc/systemd/system/
+# ttyd-tmux 서비스 바인딩을 0.0.0.0:7777로 강제
+sed -E -i 's#^ExecStart=.*#ExecStart=/usr/bin/ttyd -p 7777 -W -t disableResizeOverlay=true -t cursorStyle=bar /usr/bin/tmux attach-session -t web#' /etc/systemd/system/ttyd-tmux.service
 systemctl daemon-reload
 
-systemctl enable --now ttyd-tmux.service tmux-zai-key-bootstrap.service
+if [[ "$USE_TMUX_WEB" == "yes" ]]; then
+  systemctl disable --now ttyd.service || true
+  systemctl enable --now ttyd-tmux.service tmux-zai-key-bootstrap.service
+else
+  systemctl disable --now ttyd-tmux.service tmux-zai-key-bootstrap.service || true
+  systemctl enable --now ttyd.service
+fi
+
 # 선택: 레거시 poll timer
 systemctl enable --now codex-quota-poll.timer
 
@@ -79,11 +91,12 @@ tmux source-file /root/.tmux.conf || true
 
 ### 5.2 설치 전 필수 질문 (반드시 먼저 질문)
 
-AI는 설치를 시작하기 전에 아래 3가지를 **반드시 먼저 질문**하고 답변을 확정해야 합니다.
+AI는 설치를 시작하기 전에 아래 4가지를 **반드시 먼저 질문**하고 답변을 확정해야 합니다.
 
 1. Codex 쿼터를 표시할까요? (`yes`/`no`)
 2. (1이 `yes`인 경우만) Codex 인증정보를 어디서 읽을까요? (`codex-cli`/`opencode`)
 3. Z.AI 쿼터를 표시할까요? (`yes`/`no`)
+4. tmux 웹(`ttyd-tmux`)을 사용할까요? (`yes`/`no`)
 
 ### 5.3 AI가 실행할 체크 + 적용 절차
 
@@ -101,6 +114,7 @@ command -v curl >/dev/null || true
 SHOW_CODEX="yes"              # yes | no
 CODEX_AUTH_SOURCE="codex-cli" # codex-cli | opencode (SHOW_CODEX=yes 일 때만 의미 있음)
 SHOW_ZAI="yes"                # yes | no
+USE_TMUX_WEB="yes"            # yes | no
 
 # 1) 파일 배치
 install -d -m 755 /root/.local/bin
@@ -111,10 +125,19 @@ chmod +x /root/.local/bin/tmux-*.sh /root/.local/bin/codex-quota-poll.sh /root/.
 # 2) systemd 배치
 cp tmux-backup/2026-02-13/systemd/*.service /etc/systemd/system/
 cp tmux-backup/2026-02-13/systemd/*.timer /etc/systemd/system/
+# 2-1) ttyd-tmux 서비스 바인딩을 0.0.0.0:7777로 강제
+sed -E -i 's#^ExecStart=.*#ExecStart=/usr/bin/ttyd -p 7777 -W -t disableResizeOverlay=true -t cursorStyle=bar /usr/bin/tmux attach-session -t web#' /etc/systemd/system/ttyd-tmux.service
 systemctl daemon-reload
 
-# 3) 기본 서비스 활성화
-systemctl enable --now ttyd-tmux.service
+# 3) 답변 기반 ttyd 서비스 결정
+if [[ "$USE_TMUX_WEB" == "yes" ]]; then
+  systemctl disable --now ttyd.service || true
+  systemctl enable --now ttyd-tmux.service
+  systemctl enable --now tmux-zai-key-bootstrap.service || true
+else
+  systemctl disable --now ttyd-tmux.service tmux-zai-key-bootstrap.service || true
+  systemctl enable --now ttyd.service
+fi
 
 # 4) 답변 기반 quota/auth/ZAI 설정 반영
 if [[ "$SHOW_CODEX" == "yes" ]]; then
@@ -139,7 +162,13 @@ fi
 tmux source-file /root/.tmux.conf || true
 
 # 7) 검증
-systemctl is-active ttyd-tmux.service
+if [[ "$USE_TMUX_WEB" == "yes" ]]; then
+  systemctl is-active ttyd-tmux.service
+  systemctl is-enabled ttyd-tmux.service
+else
+  systemctl is-active ttyd.service
+  systemctl is-enabled ttyd.service
+fi
 systemctl is-enabled tmux-zai-key-bootstrap.service || true
 tmux show-options -g | grep -E '^base-index|^renumber-windows|^status |^status-format\[[0-9]+\]|^mouse'
 tmux show-options -gqv status-format[0]
@@ -160,7 +189,7 @@ tmux list-keys -T prefix | grep 'bind-key -T prefix g '
 
 ```text
 /root/Tmux-Setup/README.md를 기준으로 이 저장소의 tmux 백업을 현재 시스템에 적용해줘.
-설치 시작 전에 README 5.2의 3가지 질문을 먼저 사용자에게 하고 답변을 확정한 뒤 진행해.
+설치 시작 전에 README 5.2의 4가지 질문을 먼저 사용자에게 하고 답변을 확정한 뒤 진행해.
 반드시 "5. AI Agent 실행 가이드" 절차대로 실행하고, 각 단계 결과를 요약해.
 민감정보 값은 출력하지 말고, 마지막에 검증 명령 결과(성공/실패)만 보고해.
 실패가 있으면 원인과 재시도 최소 조치를 제시해.
