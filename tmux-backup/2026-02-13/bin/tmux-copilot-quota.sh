@@ -22,10 +22,19 @@ format_left() {
         left_sec=0
     fi
 
-    local hours mins
-    hours=$((left_sec / 3600))
-    mins=$(((left_sec % 3600) / 60))
-    printf '%d:%02d' "$hours" "$mins"
+    local total_mins total_hours days hours mins
+    total_mins=$((left_sec / 60))
+    total_hours=$((total_mins / 60))
+    mins=$((total_mins % 60))
+    days=$((total_hours / 24))
+    hours=$((total_hours % 24))
+    if (( days > 0 )); then
+        printf '%dD%dH%dM' "$days" "$hours" "$mins"
+    elif (( hours > 0 )); then
+        printf '%dH%dM' "$hours" "$mins"
+    else
+        printf '%dM' "$mins"
+    fi
 }
 
 calc_left_sec() {
@@ -55,17 +64,18 @@ segment() {
     local remain_pct="$2"
     local left_text="$3"
     local is_alert="$4"
-
+    local text
+    text="${label} ${remain_pct}% ${left_text}"
     if [[ "$is_alert" == "1" ]]; then
-        printf '#[fg=colour231,bg=colour160,bold] %s %s%%+%s #[default]' "$label" "$remain_pct" "$left_text"
+        printf '#[fg=colour196,bold]%s#[default]' "$text"
     else
-        printf '#[fg=colour255,bg=colour238] %s %s%%+%s #[default]' "$label" "$remain_pct" "$left_text"
+        printf '#[fg=colour252]%s#[default]' "$text"
     fi
 }
 
 unknown_segment() {
     local label="$1"
-    printf '#[fg=colour250,bg=colour240] %s ? #[default]' "$label"
+    printf '#[fg=colour250]%s ?#[default]' "$label"
 }
 
 load_auth_value() {
@@ -284,7 +294,12 @@ if [[ -z "$session_token" && -n "$cached_session_token" && -n "$cached_expires_s
     session_expires_sec="$cached_expires_sec"
 fi
 
-if [[ -z "$session_token" ]]; then
+quota_auth_token="$session_token"
+if [[ -z "$quota_auth_token" && -n "$oauth_token" ]]; then
+    quota_auth_token="$oauth_token"
+fi
+
+if [[ -z "$quota_auth_token" ]]; then
     printf '#[fg=colour250,bg=colour240] copilot login needed #[default]\n'
     exit 0
 fi
@@ -298,7 +313,7 @@ if (( cache_age <= cache_ttl )); then
 fi
 
 if [[ -z "$payload" ]]; then
-    fresh_payload="$(fetch_quota_payload "$session_token" "$fetch_timeout" || true)"
+    fresh_payload="$(fetch_quota_payload "$quota_auth_token" "$fetch_timeout" || true)"
     if [[ -n "$fresh_payload" ]]; then
         payload="$fresh_payload"
         write_cache_payload "$cache_file" "$payload"
@@ -322,7 +337,8 @@ fi
 remain_pct="$(extract_number "$payload" '(.quota_snapshots.premium_interactions.percent_remaining // empty) | tonumber? | floor // empty')"
 reset_date="$(jq -r '.quota_reset_date // empty' <<<"$payload" 2>/dev/null || true)"
 
-copilot_segment="$(unknown_segment 'copilot')"
+alert=0
+copilot_segment="$(unknown_segment '30D')"
 if is_int "$remain_pct"; then
     if (( remain_pct < 0 )); then
         remain_pct=0
@@ -337,16 +353,16 @@ if is_int "$remain_pct"; then
         left_text="$(format_left "$left_sec")"
     fi
 
-    alert=0
     if (( remain_pct < 20 )); then
         alert=1
     fi
 
-    copilot_segment="$(segment 'copilot' "$remain_pct" "$left_text" "$alert")"
+    copilot_segment="$(segment '30D' "$remain_pct" "$left_text" "$alert")"
 fi
 
 if (( stale == 1 )); then
-    printf '%s #[fg=colour250,bg=colour240] stale %sm #[default]\n' "$copilot_segment" "$((cache_age / 60))"
+    copilot_segment+=" #[fg=colour250]stale $((cache_age / 60))m#[default]"
+    printf '%s\n' "$copilot_segment"
     exit 0
 fi
 
