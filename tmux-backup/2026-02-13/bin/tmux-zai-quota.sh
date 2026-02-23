@@ -22,22 +22,11 @@ format_left() {
         left_sec=0
     fi
 
-    local days hours mins
-    days=$((left_sec / 86400))
-    hours=$(((left_sec % 86400) / 3600))
-    mins=$(((left_sec % 3600) / 60))
-
-    if (( days > 0 )); then
-        printf '%dd%dh' "$days" "$hours"
-        return
-    fi
-
-    if (( hours > 0 )); then
-        printf '%dh%02dm' "$hours" "$mins"
-        return
-    fi
-
-    printf '%dm' "$mins"
+    local total_mins total_hours
+    total_mins=$((left_sec / 60))
+    total_hours=$((total_mins / 60))
+    total_mins=$((total_mins % 60))
+    printf '%d:%02d' "$total_hours" "$total_mins"
 }
 
 calc_left_sec() {
@@ -64,9 +53,9 @@ segment() {
     local is_alert="$4"
 
     if [[ "$is_alert" == "1" ]]; then
-        printf '#[fg=colour231,bg=colour160,bold] %s %s%% left %s #[default]' "$label" "$remain_pct" "$left_text"
+        printf '#[fg=colour231,bg=colour160,bold] %s%% %s #[default]' "$remain_pct" "$left_text"
     else
-        printf '#[fg=colour255,bg=colour238] %s %s%% left %s #[default]' "$label" "$remain_pct" "$left_text"
+        printf '#[fg=colour255,bg=colour238] %s%% %s #[default]' "$remain_pct" "$left_text"
     fi
 }
 
