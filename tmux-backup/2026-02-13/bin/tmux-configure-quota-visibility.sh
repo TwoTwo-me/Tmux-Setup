@@ -8,6 +8,7 @@ Usage:
     --show-codex yes|no \
     --codex-auth-source codex-cli|opencode \
     --show-zai yes|no \
+    [--show-copilot yes|no] \
     [--tmux-conf /root/.tmux.conf] \
     [--apply-services yes|no] \
     [--source-tmux yes|no]
@@ -40,6 +41,7 @@ normalize_auth_source() {
 
 show_codex=''
 show_zai=''
+show_copilot='no'
 codex_auth_source=''
 tmux_conf='/root/.tmux.conf'
 apply_services='yes'
@@ -66,6 +68,14 @@ while [[ $# -gt 0 ]]; do
         --show-zai)
             show_zai="$(normalize_bool "${2:-}")" || {
                 printf 'Invalid --show-zai value: %s\n' "${2:-}" >&2
+                usage >&2
+                exit 1
+            }
+            shift 2
+            ;;
+        --show-copilot)
+            show_copilot="$(normalize_bool "${2:-}")" || {
+                printf 'Invalid --show-copilot value: %s\n' "${2:-}" >&2
                 usage >&2
                 exit 1
             }
@@ -123,6 +133,7 @@ fi
 left_segment='#[align=left]#[fg=colour252]#(/root/.local/bin/tmux-path-right.sh "#{pane_current_path}" 52)#[default] #(/root/.local/bin/tmux-git-segment.sh "#{pane_current_path}")'
 codex_segment='#[bg=colour52,fg=colour231,bold] CODEX #[default] #(/root/.local/bin/tmux-codex-quota.sh)'
 zai_segment='#[bg=colour22,fg=colour231,bold] Z.AI #[default] #(/root/.local/bin/tmux-zai-quota.sh)'
+copilot_segment='#[bg=colour17,fg=colour231,bold] COPILOT #[default] #(/root/.local/bin/tmux-copilot-quota.sh)'
 separator=' #[fg=colour245]│#[default] '
 
 right_segment=''
@@ -134,6 +145,12 @@ if [[ "$show_zai" == 'yes' ]]; then
         right_segment+="$separator"
     fi
     right_segment+="$zai_segment"
+fi
+if [[ "$show_copilot" == 'yes' ]]; then
+    if [[ -n "$right_segment" ]]; then
+        right_segment+="$separator"
+    fi
+    right_segment+="$copilot_segment"
 fi
 if [[ -z "$right_segment" ]]; then
     right_segment='#[fg=colour244] quota off #[default]'
@@ -154,7 +171,11 @@ while IFS= read -r line || [[ -n "$line" ]]; do
         "run-shell -b '/root/.local/bin/tmux-load-opencode-key.sh'"|\
         "set-hook -g client-attached 'run-shell -b /root/.local/bin/tmux-load-opencode-key.sh'"|\
         "# Load Z.AI key from opencode auth.json on attach"|\
-        "set-environment -g CODEX_AUTH_FILE "*)
+        "set-environment -g CODEX_AUTH_FILE "*|\
+        "run-shell -b '/root/.local/bin/tmux-load-copilot-key.sh'"|\
+        "set-hook -g client-attached 'run-shell -b /root/.local/bin/tmux-load-copilot-key.sh'"|\
+        "# Load Copilot key on attach"|\
+        "set-environment -g COPILOT_AUTH_FILE "*)
             continue
             ;;
     esac
@@ -197,7 +218,7 @@ if [[ "$source_tmux" == 'yes' ]] && command -v tmux >/dev/null 2>&1; then
     tmux source-file "$tmux_conf" >/dev/null 2>&1 || true
 fi
 
-printf 'Configured quota visibility: codex=%s, zai=%s\n' "$show_codex" "$show_zai"
+printf 'Configured quota visibility: codex=%s, zai=%s, copilot=%s\n' "$show_codex" "$show_zai" "$show_copilot"
 if [[ "$show_codex" == 'yes' ]]; then
     printf 'Codex auth source: %s\n' "$codex_auth_source"
 fi
