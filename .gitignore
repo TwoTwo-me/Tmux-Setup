@@ -1,0 +1,7 @@
+# Sisyphus working directory
+.sisyphus/
+
+# OS files
+.DS_Store
+*.swp
+*.swo

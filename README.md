@@ -10,29 +10,26 @@
 - systemd 서비스(`ttyd-tmux`, `tmux-zai-key-bootstrap`) 복구
 - (선택) 레거시 Codex poll timer 복구
 
-복구 기준 스냅샷은 `tmux-backup/2026-02-13/` 입니다.
+복구 기준 스냅샷은 `tmux-backup/` 입니다.
 
 ## 2. 디렉토리 구성
 
 ```text
-tmux-backup/2026-02-13/
+tmux-backup/
 ├─ home/tmux.conf
 ├─ bin/
 │  ├─ tmux-codex-quota.sh
 │  ├─ tmux-zai-quota.sh
+│  ├─ tmux-copilot-quota.sh
 │  ├─ tmux-load-opencode-key.sh
 │  ├─ tmux-status-click.sh
-│  └─ ... (총 16개)
+│  └─ ... (총 17개)
 └─ systemd/
    ├─ ttyd-tmux.service
    ├─ tmux-zai-key-bootstrap.service
    ├─ codex-quota-poll.service
    └─ codex-quota-poll.timer
 ```
-
-참고 문서:
-- `TMUX_세팅_백업_복구_가이드_20260213.md`
-- `TMUX_ZAI_CODEX_쿼터_모니터링_구축_보고서_20260212.md`
 
 ## 3. 민감정보 정책
 
@@ -55,12 +52,12 @@ cd /root/Tmux-Setup
 USE_TMUX_WEB="yes"
 
 install -d -m 755 /root/.local/bin
-cp tmux-backup/2026-02-13/home/tmux.conf /root/.tmux.conf
-cp tmux-backup/2026-02-13/bin/* /root/.local/bin/
+cp tmux-backup/home/tmux.conf /root/.tmux.conf
+cp tmux-backup/bin/* /root/.local/bin/
 chmod +x /root/.local/bin/tmux-*.sh /root/.local/bin/codex-quota-poll.sh /root/.local/bin/codex-quota-set
 
-cp tmux-backup/2026-02-13/systemd/*.service /etc/systemd/system/
-cp tmux-backup/2026-02-13/systemd/*.timer /etc/systemd/system/
+cp tmux-backup/systemd/*.service /etc/systemd/system/
+cp tmux-backup/systemd/*.timer /etc/systemd/system/
 # ttyd-tmux 서비스 바인딩을 0.0.0.0:7777로 강제
 sed -E -i 's#^ExecStart=.*#ExecStart=/usr/bin/ttyd -p 7777 -W -t disableResizeOverlay=true -t cursorStyle=bar /usr/bin/tmux attach-session -t web#' /etc/systemd/system/ttyd-tmux.service
 systemctl daemon-reload
@@ -122,13 +119,13 @@ USE_TMUX_WEB="yes"            # yes | no
 
 # 1) 파일 배치
 install -d -m 755 /root/.local/bin
-cp tmux-backup/2026-02-13/home/tmux.conf /root/.tmux.conf
-cp tmux-backup/2026-02-13/bin/* /root/.local/bin/
+cp tmux-backup/home/tmux.conf /root/.tmux.conf
+cp tmux-backup/bin/* /root/.local/bin/
 chmod +x /root/.local/bin/tmux-*.sh /root/.local/bin/codex-quota-poll.sh /root/.local/bin/codex-quota-set /root/.local/bin/tmux-configure-quota-visibility.sh
 
 # 2) systemd 배치
-cp tmux-backup/2026-02-13/systemd/*.service /etc/systemd/system/
-cp tmux-backup/2026-02-13/systemd/*.timer /etc/systemd/system/
+cp tmux-backup/systemd/*.service /etc/systemd/system/
+cp tmux-backup/systemd/*.timer /etc/systemd/system/
 # 2-1) ttyd-tmux 서비스 바인딩을 0.0.0.0:7777로 강제
 sed -E -i 's#^ExecStart=.*#ExecStart=/usr/bin/ttyd -p 7777 -W -t disableResizeOverlay=true -t cursorStyle=bar /usr/bin/tmux attach-session -t web#' /etc/systemd/system/ttyd-tmux.service
 systemctl daemon-reload
