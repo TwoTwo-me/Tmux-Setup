@@ -22,22 +22,19 @@ format_left() {
         left_sec=0
     fi
 
-    local days hours mins
-    days=$((left_sec / 86400))
-    hours=$(((left_sec % 86400) / 3600))
-    mins=$(((left_sec % 3600) / 60))
-
+    local total_mins total_hours days hours mins
+    total_mins=$((left_sec / 60))
+    total_hours=$((total_mins / 60))
+    mins=$((total_mins % 60))
+    days=$((total_hours / 24))
+    hours=$((total_hours % 24))
     if (( days > 0 )); then
-        printf '%dd%dh' "$days" "$hours"
-        return
+        printf '%dD%dH%dM' "$days" "$hours" "$mins"
+    elif (( hours > 0 )); then
+        printf '%dH%dM' "$hours" "$mins"
+    else
+        printf '%dM' "$mins"
     fi
-
-    if (( hours > 0 )); then
-        printf '%dh%02dm' "$hours" "$mins"
-        return
-    fi
-
-    printf '%dm' "$mins"
 }
 
 calc_left_sec() {
@@ -62,17 +59,18 @@ segment() {
     local remain_pct="$2"
     local left_text="$3"
     local is_alert="$4"
-
+    local text
+    text="${label} ${remain_pct}% ${left_text}"
     if [[ "$is_alert" == "1" ]]; then
-        printf '#[fg=colour231,bg=colour160,bold] %s %s%% left %s #[default]' "$label" "$remain_pct" "$left_text"
+        printf '#[fg=colour196,bold]%s#[default]' "$text"
     else
-        printf '#[fg=colour255,bg=colour238] %s %s%% left %s #[default]' "$label" "$remain_pct" "$left_text"
+        printf '#[fg=colour252]%s#[default]' "$text"
     fi
 }
 
 unknown_segment() {
     local label="$1"
-    printf '#[fg=colour250,bg=colour240] %s ? #[default]' "$label"
+    printf '#[fg=colour250]%s ?#[default]' "$label"
 }
 
 api_key="${ZAI_API_KEY:-${ZHIPU_API_KEY:-}}"
@@ -119,7 +117,8 @@ tools_current_value="$(jq -r '.data.limits[]? | select(.type=="TIME_LIMIT" and .
 tools_remaining="$(jq -r '.data.limits[]? | select(.type=="TIME_LIMIT" and .unit==5) | .remaining // empty' <<<"$response" 2>/dev/null || true)"
 tools_reset_ms="$(jq -r '.data.limits[]? | select(.type=="TIME_LIMIT" and .unit==5) | .nextResetTime // empty' <<<"$response" 2>/dev/null || true)"
 
-five_segment="$(unknown_segment '5h')"
+five_alert=0
+five_segment="$(unknown_segment '5H')"
 if is_int "$five_used"; then
     five_remain=$((100 - five_used))
     if (( five_remain < 0 )); then
@@ -131,15 +130,15 @@ if is_int "$five_used"; then
         five_left_text="$(format_left "$five_left_sec")"
     fi
 
-    five_alert=0
     if (( five_remain < 20 )); then
         five_alert=1
     fi
 
-    five_segment="$(segment '5h' "$five_remain" "$five_left_text" "$five_alert")"
+    five_segment="$(segment '5H' "$five_remain" "$five_left_text" "$five_alert")"
 fi
 
-seven_segment="$(unknown_segment '7d')"
+seven_alert=0
+seven_segment="$(unknown_segment '7D')"
 if is_int "$seven_used"; then
     seven_remain=$((100 - seven_used))
     if (( seven_remain < 0 )); then
@@ -147,8 +146,6 @@ if is_int "$seven_used"; then
     fi
     seven_left_sec="$(calc_left_sec "$seven_reset_ms")"
     seven_left_text='?'
-    seven_alert=0
-
     if is_int "$seven_left_sec"; then
         seven_left_text="$(format_left "$seven_left_sec")"
         seven_window_sec=$((7 * 24 * 3600))
@@ -164,10 +161,11 @@ if is_int "$seven_used"; then
         fi
     fi
 
-    seven_segment="$(segment '7d' "$seven_remain" "$seven_left_text" "$seven_alert")"
+    seven_segment="$(segment '7D' "$seven_remain" "$seven_left_text" "$seven_alert")"
 fi
 
-tools_segment="$(unknown_segment 'tools')"
+tools_alert=0
+tools_segment="$(unknown_segment '30D')"
 tools_used_calc=''
 if is_int "$tools_used_pct"; then
     tools_used_calc="$tools_used_pct"
@@ -187,8 +185,6 @@ if is_int "$tools_used_calc"; then
     fi
     tools_left_sec="$(calc_left_sec "$tools_reset_ms")"
     tools_left_text='?'
-    tools_alert=0
-
     if is_int "$tools_left_sec"; then
         tools_left_text="$(format_left "$tools_left_sec")"
         tools_window_sec="${ZAI_TOOLS_WINDOW_SEC:-2592000}"
@@ -208,7 +204,8 @@ if is_int "$tools_used_calc"; then
         fi
     fi
 
-    tools_segment="$(segment 'tools' "$tools_remain" "$tools_left_text" "$tools_alert")"
+    tools_segment="$(segment '30D' "$tools_remain" "$tools_left_text" "$tools_alert")"
 fi
 
-printf '%s #[fg=colour245]│#[default] %s #[fg=colour245]│#[default] %s\n' "$five_segment" "$seven_segment" "$tools_segment"
+summary_text="${five_segment} | ${seven_segment} | ${tools_segment}"
+printf '%s\n' "$summary_text"
