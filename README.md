@@ -58,8 +58,8 @@ chmod +x /root/.local/bin/tmux-*.sh /root/.local/bin/codex-quota-poll.sh /root/.
 
 cp tmux-backup/systemd/*.service /etc/systemd/system/
 cp tmux-backup/systemd/*.timer /etc/systemd/system/
-# ttyd-tmux 서비스 바인딩을 0.0.0.0:7777로 강제
-sed -E -i 's#^ExecStart=.*#ExecStart=/usr/bin/ttyd -p 7777 -W -t disableResizeOverlay=true -t cursorStyle=bar /usr/bin/tmux attach-session -t web#' /etc/systemd/system/ttyd-tmux.service
+# ttyd-tmux 서비스 바인딩을 0.0.0.0:7777로 강제 + web 세션 자동 생성
+sed -E -i 's#^ExecStart=.*#ExecStart=/usr/bin/ttyd -p 7777 -W -t disableResizeOverlay=true -t cursorStyle=bar /bin/bash -lc "/usr/bin/tmux has-session -t web 2>/dev/null || /usr/bin/tmux new-session -d -s web; exec /usr/bin/tmux attach-session -t web"#' /etc/systemd/system/ttyd-tmux.service
 systemctl daemon-reload
 
 if [[ "$USE_TMUX_WEB" == "yes" ]]; then
@@ -126,8 +126,8 @@ chmod +x /root/.local/bin/tmux-*.sh /root/.local/bin/codex-quota-poll.sh /root/.
 # 2) systemd 배치
 cp tmux-backup/systemd/*.service /etc/systemd/system/
 cp tmux-backup/systemd/*.timer /etc/systemd/system/
-# 2-1) ttyd-tmux 서비스 바인딩을 0.0.0.0:7777로 강제
-sed -E -i 's#^ExecStart=.*#ExecStart=/usr/bin/ttyd -p 7777 -W -t disableResizeOverlay=true -t cursorStyle=bar /usr/bin/tmux attach-session -t web#' /etc/systemd/system/ttyd-tmux.service
+# 2-1) ttyd-tmux 서비스 바인딩을 0.0.0.0:7777로 강제 + web 세션 자동 생성
+sed -E -i 's#^ExecStart=.*#ExecStart=/usr/bin/ttyd -p 7777 -W -t disableResizeOverlay=true -t cursorStyle=bar /bin/bash -lc "/usr/bin/tmux has-session -t web 2>/dev/null || /usr/bin/tmux new-session -d -s web; exec /usr/bin/tmux attach-session -t web"#' /etc/systemd/system/ttyd-tmux.service
 systemctl daemon-reload
 
 # 3) 답변 기반 ttyd 서비스 결정

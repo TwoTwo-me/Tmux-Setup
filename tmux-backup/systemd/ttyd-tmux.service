@@ -9,7 +9,7 @@ WorkingDirectory=~
 Environment=LANG=ko_KR.UTF-8 LC_ALL=ko_KR.UTF-8
 KillMode=process
 ExecStartPre=/bin/bash -lc '/usr/bin/tmux has-session -t web 2>/dev/null || /usr/bin/tmux new-session -d -s web'
-ExecStart=/usr/bin/ttyd -p 7777 -W -t disableResizeOverlay=true -t cursorStyle=bar /usr/bin/tmux attach-session -t web
+ExecStart=/usr/bin/ttyd -p 7777 -W -t disableResizeOverlay=true -t cursorStyle=bar /bin/bash -lc '/usr/bin/tmux has-session -t web 2>/dev/null || /usr/bin/tmux new-session -d -s web; exec /usr/bin/tmux attach-session -t web'
 Restart=on-failure
 RestartSec=2
 
