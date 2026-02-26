@@ -29,11 +29,11 @@ format_left() {
     days=$((total_hours / 24))
     hours=$((total_hours % 24))
     if (( days > 0 )); then
-        printf '%dD%dH%dM' "$days" "$hours" "$mins"
+        printf '%dd%dh%dm' "$days" "$hours" "$mins"
     elif (( hours > 0 )); then
-        printf '%dH%dM' "$hours" "$mins"
+        printf '%dh%dm' "$hours" "$mins"
     else
-        printf '%dM' "$mins"
+        printf '%dm' "$mins"
     fi
 }
 
@@ -338,7 +338,7 @@ remain_pct="$(extract_number "$payload" '(.quota_snapshots.premium_interactions.
 reset_date="$(jq -r '.quota_reset_date // empty' <<<"$payload" 2>/dev/null || true)"
 
 alert=0
-copilot_segment="$(unknown_segment '30D')"
+copilot_segment="$(unknown_segment '30d')"
 if is_int "$remain_pct"; then
     if (( remain_pct < 0 )); then
         remain_pct=0
@@ -357,7 +357,7 @@ if is_int "$remain_pct"; then
         alert=1
     fi
 
-    copilot_segment="$(segment '30D' "$remain_pct" "$left_text" "$alert")"
+    copilot_segment="$(segment '30d' "$remain_pct" "$left_text" "$alert")"
 fi
 
 if (( stale == 1 )); then
