@@ -14,7 +14,7 @@ resolve_home_dir() {
 
 home_dir="$(resolve_home_dir)"
 snapshot_file="${CODEX_QUOTA_FILE:-$home_dir/.cache/codex_quota_status.txt}"
-opencode_bin="${OPENCODE_BIN:-/root/.opencode/bin/opencode}"
+opencode_bin="${OPENCODE_BIN:-"$HOME/.opencode/bin/opencode"}"
 model_key="${CODEX_STATS_MODEL:-openai/gpt-5.3-codex}"
 days="${CODEX_STATS_DAYS:-1}"
 

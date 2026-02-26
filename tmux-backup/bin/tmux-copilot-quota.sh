@@ -1,88 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-resolve_home_dir() {
-    local home_dir="${HOME:-}"
-    if [[ -z "$home_dir" ]]; then
-        home_dir="$(getent passwd "$(id -u)" 2>/dev/null | cut -d: -f6 || true)"
-    fi
-    if [[ -z "$home_dir" ]]; then
-        home_dir='/root'
-    fi
-    printf '%s' "$home_dir"
-}
-
-is_int() {
-    [[ "${1:-}" =~ ^[0-9]+$ ]]
-}
-
-format_left() {
-    local left_sec="${1:-0}"
-    if ! is_int "$left_sec" || (( left_sec < 0 )); then
-        left_sec=0
-    fi
-
-    local total_mins total_hours days hours mins
-    total_mins=$((left_sec / 60))
-    total_hours=$((total_mins / 60))
-    mins=$((total_mins % 60))
-    days=$((total_hours / 24))
-    hours=$((total_hours % 24))
-    if (( days > 0 )); then
-        printf '%dd%dh%dm' "$days" "$hours" "$mins"
-    elif (( hours > 0 )); then
-        printf '%dh%dm' "$hours" "$mins"
-    else
-        printf '%dm' "$mins"
-    fi
-}
-
-calc_left_sec() {
-    local reset_raw="${1:-}"
-    if [[ -z "$reset_raw" ]]; then
-        printf '%s' ""
-        return
-    fi
-
-    local now_sec reset_sec left_sec
-    now_sec="$(date +%s)"
-    reset_sec="$(date -d "$reset_raw" +%s 2>/dev/null || true)"
-    if ! is_int "$reset_sec"; then
-        printf '%s' ""
-        return
-    fi
-
-    left_sec=$((reset_sec - now_sec))
-    if (( left_sec < 0 )); then
-        left_sec=0
-    fi
-    printf '%s' "$left_sec"
-}
-
-segment() {
-    local label="$1"
-    local remain_pct="$2"
-    local left_text="$3"
-    local is_alert="$4"
-    local text
-    text="${label} ${remain_pct}% ${left_text}"
-    if [[ "$is_alert" == "1" ]]; then
-        printf '#[fg=colour196,bold]%s#[default]' "$text"
-    else
-        printf '#[fg=colour252]%s#[default]' "$text"
-    fi
-}
-
-unknown_segment() {
-    local label="$1"
-    printf '#[fg=colour250]%s ?#[default]' "$label"
-}
-
-load_auth_value() {
-    local auth_file="$1"
-    local jq_filter="$2"
-    jq -r "$jq_filter" "$auth_file" 2>/dev/null || true
-}
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
+if [[ -f "$script_dir/tmux-quota-common.sh" ]]; then
+    source "$script_dir/tmux-quota-common.sh"
+elif [[ -f "$script_dir/../lib/tmux-quota-common.sh" ]]; then
+    source "$script_dir/../lib/tmux-quota-common.sh"
+else
+    printf '#[fg=colour250,bg=colour240] copilot quota unavailable #[default]\n'
+    exit 0
+fi
 
 select_auth_file() {
     local data_home="$1"
@@ -187,44 +114,6 @@ fetch_quota_payload() {
     printf '%s' "$body"
 }
 
-read_cached_payload() {
-    local cache_file="$1"
-    if [[ ! -f "$cache_file" ]]; then
-        return 1
-    fi
-
-    jq -c '.payload // empty' "$cache_file" 2>/dev/null || true
-}
-
-read_cached_age() {
-    local cache_file="$1"
-    if [[ ! -f "$cache_file" ]]; then
-        printf '999999'
-        return
-    fi
-
-    local now_ts file_ts age_sec
-    now_ts="$(date +%s)"
-    file_ts="$(stat -c %Y "$cache_file" 2>/dev/null || echo "$now_ts")"
-    age_sec=$((now_ts - file_ts))
-    if (( age_sec < 0 )); then
-        age_sec=0
-    fi
-    printf '%s' "$age_sec"
-}
-
-write_cache_payload() {
-    local cache_file="$1"
-    local payload="$2"
-    local cache_dir tmp_file
-    cache_dir="$(dirname "$cache_file")"
-    mkdir -p "$cache_dir"
-    tmp_file="$(mktemp "${cache_file}.tmp.XXXXXX")"
-    chmod 600 "$tmp_file" 2>/dev/null || true
-    printf '{"payload":%s}\n' "$payload" >"$tmp_file"
-    mv "$tmp_file" "$cache_file"
-}
-
 extract_number() {
     local payload="$1"
     local jq_filter="$2"
@@ -232,7 +121,12 @@ extract_number() {
 }
 
 home_dir="$(resolve_home_dir)"
-cache_token_file="${COPILOT_TOKEN_CACHE_FILE:-$home_dir/.cache/tmux-copilot-token.json}"
+default_token_cache_file="$(get_cache_dir)/copilot-token.json"
+legacy_token_cache_file="$home_dir/.cache/tmux-copilot-token.json"
+cache_token_file="${COPILOT_TOKEN_CACHE_FILE:-$default_token_cache_file}"
+if [[ -z "${COPILOT_TOKEN_CACHE_FILE:-}" && ! -f "$cache_token_file" && -f "$legacy_token_cache_file" ]]; then
+    cache_token_file="$legacy_token_cache_file"
+fi
 cache_file="${COPILOT_QUOTA_CACHE_FILE:-$home_dir/.cache/tmux-copilot-user.json}"
 cache_ttl="${COPILOT_QUOTA_CACHE_TTL_SEC:-60}"
 stale_after="${COPILOT_QUOTA_STALE_SEC:-1800}"

@@ -1,6 +1,19 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Source common library
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
+if [[ -f "$script_dir/tmux-quota-common.sh" ]]; then
+    # shellcheck source=tmux-quota-common.sh
+    source "$script_dir/tmux-quota-common.sh"
+elif [[ -f "$script_dir/../lib/tmux-quota-common.sh" ]]; then
+    # shellcheck source=../lib/tmux-quota-common.sh
+    source "$script_dir/../lib/tmux-quota-common.sh"
+else
+    printf '#[fg=colour250]common lib unavailable#[default]\n'
+    exit 1
+fi
+
 usage() {
     cat <<'EOF'
 Usage:
@@ -9,7 +22,7 @@ Usage:
     --codex-auth-source codex-cli|opencode \
     --show-zai yes|no \
     [--show-copilot yes|no] \
-    [--tmux-conf /root/.tmux.conf] \
+    [--tmux-conf ~/.tmux.conf] \
     [--apply-services yes|no] \
     [--source-tmux yes|no]
 
@@ -43,7 +56,12 @@ show_codex=''
 show_zai=''
 show_copilot='no'
 codex_auth_source=''
-tmux_conf='/root/.tmux.conf'
+
+# Get configurable paths
+home_dir="$(resolve_home_dir)"
+bin_dir="$(get_bin_dir)"
+tmux_conf_default="$(get_tmux_conf)"
+tmux_conf="${TMUX_CONF_OVERRIDE:-$tmux_conf_default}"
 apply_services='yes'
 source_tmux='yes'
 
@@ -130,10 +148,11 @@ if [[ ! -f "$tmux_conf" ]]; then
     exit 1
 fi
 
-left_segment='#[align=left]#[fg=colour252]#(/root/.local/bin/tmux-path-right.sh "#{pane_current_path}" 52)#[default] #(/root/.local/bin/tmux-git-segment.sh "#{pane_current_path}")'
-codex_segment='#[bg=colour52,fg=colour231,bold] CODEX #[default] #(/root/.local/bin/tmux-codex-quota.sh)'
-zai_segment='#[bg=colour22,fg=colour231,bold] Z.AI #[default] #(/root/.local/bin/tmux-zai-quota.sh)'
-copilot_segment='#[bg=colour17,fg=colour231,bold] COPILOT #[default] #(/root/.local/bin/tmux-copilot-quota.sh)'
+# Build segments with configurable bin_dir
+left_segment="#[align=left]#[fg=colour252]#(${bin_dir}/tmux-path-right.sh \"#{pane_current_path}\" 52)#[default] #(${bin_dir}/tmux-git-segment.sh \"#{pane_current_path}\")"
+codex_segment="#[bg=colour52,fg=colour231,bold] CODEX #[default] #(${bin_dir}/tmux-codex-quota.sh)"
+zai_segment="#[bg=colour22,fg=colour231,bold] Z.AI #[default] #(${bin_dir}/tmux-zai-quota.sh)"
+copilot_segment="#[bg=colour17,fg=colour231,bold] COPILOT #[default] #(${bin_dir}/tmux-copilot-quota.sh)"
 separator=' #[fg=colour245]│#[default] '
 
 right_segment=''
@@ -168,12 +187,12 @@ while IFS= read -r line || [[ -n "$line" ]]; do
             status_replaced=1
             continue
             ;;
-        "run-shell -b '/root/.local/bin/tmux-load-opencode-key.sh'"|\
-        "set-hook -g client-attached 'run-shell -b /root/.local/bin/tmux-load-opencode-key.sh'"|\
+        "run-shell -b '${bin_dir}/tmux-load-opencode-key.sh'"|\
+        "set-hook -g client-attached 'run-shell -b ${bin_dir}/tmux-load-opencode-key.sh'"|\
         "# Load Z.AI key from opencode auth.json on attach"|\
         "set-environment -g CODEX_AUTH_FILE "*|\
-        "run-shell -b '/root/.local/bin/tmux-load-copilot-key.sh'"|\
-        "set-hook -g client-attached 'run-shell -b /root/.local/bin/tmux-load-copilot-key.sh'"|\
+        "run-shell -b '${bin_dir}/tmux-load-copilot-key.sh'"|\
+        "set-hook -g client-attached 'run-shell -b ${bin_dir}/tmux-load-copilot-key.sh'"|\
         "# Load Copilot key on attach"|\
         "set-environment -g COPILOT_AUTH_FILE "*)
             continue
@@ -188,16 +207,21 @@ fi
 
 if [[ "$show_zai" == 'yes' ]]; then
     printf '# Load Z.AI key from opencode auth.json on attach\n' >>"$tmp_file"
-    printf "run-shell -b '/root/.local/bin/tmux-load-opencode-key.sh'\n" >>"$tmp_file"
-    printf "set-hook -g client-attached 'run-shell -b /root/.local/bin/tmux-load-opencode-key.sh'\n" >>"$tmp_file"
+    printf "run-shell -b '%s/tmux-load-opencode-key.sh'\n" >>"$tmp_file"
+    printf "set-hook -g client-attached 'run-shell -b %s/tmux-load-opencode-key.sh'\n" >>"$tmp_file"
 fi
 
 if [[ "$show_codex" == 'yes' ]]; then
-    codex_auth_file='/root/.local/share/opencode/auth.json'
+    codex_auth_file="$home_dir/.local/share/opencode/auth.json"
     if [[ "$codex_auth_source" == 'codex-cli' ]]; then
-        codex_auth_file='/root/.codex/auth.json'
+        codex_auth_file="$home_dir/.codex/auth.json"
     fi
     printf 'set-environment -g CODEX_AUTH_FILE %s\n' "$codex_auth_file" >>"$tmp_file"
+fi
+
+# Backup existing config before overwriting
+if [[ -f "$tmux_conf" ]]; then
+    cp "$tmux_conf" "${tmux_conf}.bak.$(date +%Y%m%d%H%M%S)"
 fi
 
 mv "$tmp_file" "$tmux_conf"

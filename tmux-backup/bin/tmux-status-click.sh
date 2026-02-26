@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -u -o pipefail
+set -euo pipefail
 
 if ! command -v tmux >/dev/null 2>&1; then
     exit 0

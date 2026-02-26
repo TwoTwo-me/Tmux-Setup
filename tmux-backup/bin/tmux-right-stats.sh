@@ -2,7 +2,7 @@
 set -euo pipefail
 
 width="${1:-0}"
-stats="$('/root/.local/bin/tmux-sys-stats.sh' 2>/dev/null || printf 'CPU ?%% RAM ?%%')"
+stats="$("$(dirname "$0")/tmux-sys-stats.sh" 2>/dev/null || printf 'CPU ?%% RAM ?%%')"
 text="$stats | $(date '+%Y-%m-%d %H:%M %Z')"
 
 if [[ "$width" =~ ^[0-9]+$ ]] && (( width > 0 )); then

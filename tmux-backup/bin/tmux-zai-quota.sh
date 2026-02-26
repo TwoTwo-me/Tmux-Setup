@@ -1,77 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-resolve_home_dir() {
-    local home_dir="${HOME:-}"
-    if [[ -z "$home_dir" ]]; then
-        home_dir="$(getent passwd "$(id -u)" 2>/dev/null | cut -d: -f6 || true)"
-    fi
-    if [[ -z "$home_dir" ]]; then
-        home_dir='/root'
-    fi
-    printf '%s' "$home_dir"
-}
-
-is_int() {
-    [[ "${1:-}" =~ ^[0-9]+$ ]]
-}
-
-format_left() {
-    local left_sec="${1:-0}"
-    if ! is_int "$left_sec" || (( left_sec < 0 )); then
-        left_sec=0
-    fi
-
-    local total_mins total_hours days hours mins
-    total_mins=$((left_sec / 60))
-    total_hours=$((total_mins / 60))
-    mins=$((total_mins % 60))
-    days=$((total_hours / 24))
-    hours=$((total_hours % 24))
-    if (( days > 0 )); then
-        printf '%dd%dh%dm' "$days" "$hours" "$mins"
-    elif (( hours > 0 )); then
-        printf '%dh%dm' "$hours" "$mins"
-    else
-        printf '%dm' "$mins"
-    fi
-}
-
-calc_left_sec() {
-    local reset_ms="${1:-}"
-    if ! is_int "$reset_ms"; then
-        printf '%s' ""
-        return
-    fi
-
-    local now_sec reset_sec left_sec
-    now_sec="$(date +%s)"
-    reset_sec=$((reset_ms / 1000))
-    left_sec=$((reset_sec - now_sec))
-    if (( left_sec < 0 )); then
-        left_sec=0
-    fi
-    printf '%s' "$left_sec"
-}
-
-segment() {
-    local label="$1"
-    local remain_pct="$2"
-    local left_text="$3"
-    local is_alert="$4"
-    local text
-    text="${label} ${remain_pct}% ${left_text}"
-    if [[ "$is_alert" == "1" ]]; then
-        printf '#[fg=colour196,bold]%s#[default]' "$text"
-    else
-        printf '#[fg=colour252]%s#[default]' "$text"
-    fi
-}
-
-unknown_segment() {
-    local label="$1"
-    printf '#[fg=colour250]%s ?#[default]' "$label"
-}
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
+if [[ -f "$script_dir/tmux-quota-common.sh" ]]; then
+    source "$script_dir/tmux-quota-common.sh"
+elif [[ -f "$script_dir/../lib/tmux-quota-common.sh" ]]; then
+    source "$script_dir/../lib/tmux-quota-common.sh"
+else
+    printf '#[fg=colour250,bg=colour240] quota lib missing #[default]\n'
+    exit 0
+fi
 
 api_key="${ZAI_API_KEY:-${ZHIPU_API_KEY:-}}"
 base_url="${ZAI_API_BASE:-https://api.z.ai}"

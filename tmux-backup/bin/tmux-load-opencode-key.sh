@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -u -o pipefail
+set -euo pipefail
 
 set_tmux_key() {
     local key="${1:-}"

@@ -62,7 +62,7 @@ else
     warn 'status-format[1] does not reference tmux-zai-quota.sh'
 fi
 
-quota_output="$(/root/.local/bin/tmux-zai-quota.sh 2>/dev/null || true)"
+quota_output="$("$(dirname "$0")/tmux-zai-quota.sh" 2>/dev/null || true)"
 if [[ -z "$quota_output" ]]; then
     fail 'quota script returned empty output'
 elif [[ "$quota_output" == *'set ZAI_API_KEY'* ]]; then

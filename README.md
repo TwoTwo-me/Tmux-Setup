@@ -16,6 +16,8 @@
 
 ```text
 tmux-backup/
+├─ lib/
+│  └─ tmux-quota-common.sh    # 공통 함수 라이브러리
 ├─ home/tmux.conf
 ├─ bin/
 │  ├─ tmux-codex-quota.sh
@@ -23,7 +25,7 @@ tmux-backup/
 │  ├─ tmux-copilot-quota.sh
 │  ├─ tmux-load-opencode-key.sh
 │  ├─ tmux-status-click.sh
-│  └─ ... (총 17개)
+│  └─ ... (총 18개)
 └─ systemd/
    ├─ ttyd-tmux.service
    ├─ tmux-zai-key-bootstrap.service
@@ -35,12 +37,24 @@ tmux-backup/
 
 - 이 저장소에는 실제 API 키/토큰 값을 포함하지 않습니다.
 - 인증 데이터는 아래 외부 파일에서 읽어옵니다.
-  - `/root/.local/share/opencode/auth.json`
-  - `/root/.codex/auth.json` (`codex login` 사용 시)
+  - `~/.local/share/opencode/auth.json`
+  - `~/.codex/auth.json` (`codex login` 사용 시)
   - `pass` 저장소(`pass show api/zai`)
 - 따라서 복구 후 인증이 안 되어 있으면 쿼터 영역은 `login needed` 또는 `set ZAI_API_KEY`로 표시될 수 있습니다.
 
-## 4. 사람이 직접 복구하는 방법
+## 4. 환경 변수
+
+스크립트는 다음 환경 변수를 지원합니다:
+
+| 변수 | 기본값 | 설명 |
+|------|--------|------|
+| `TMUX_QUOTA_CACHE_DIR` | `~/.cache/tmux-quota` | 캐시 디렉토리 (XDG 표준) |
+| `TMUX_BIN_DIR` | `~/.local/bin` | 스크립트 설치 위치 |
+| `TMUX_CONF_FILE` | `~/.tmux.conf` | tmux 설정 파일 경로 |
+| `CODEX_QUOTA_CACHE_FILE` | (자동) | Codex 쿼터 캐시 파일 |
+| `COPILOT_QUOTA_CACHE_FILE` | (자동) | Copilot 쿼터 캐시 파일 |
+
+## 5. 사람이 직접 복구하는 방법
 
 루트 기준:
 
@@ -51,10 +65,11 @@ cd /root/Tmux-Setup
 # yes: tmux 웹(ttyd-tmux) 사용 / no: 패키지 기본 ttyd 사용
 USE_TMUX_WEB="yes"
 
-install -d -m 755 /root/.local/bin
-cp tmux-backup/home/tmux.conf /root/.tmux.conf
-cp tmux-backup/bin/* /root/.local/bin/
-chmod +x /root/.local/bin/tmux-*.sh /root/.local/bin/codex-quota-poll.sh /root/.local/bin/codex-quota-set
+install -d -m 755 "$HOME/.local/bin"
+cp tmux-backup/home/tmux.conf "$HOME/.tmux.conf"
+cp tmux-backup/bin/* "$HOME/.local/bin/"
+cp tmux-backup/lib/tmux-quota-common.sh "$HOME/.local/bin/"
+chmod +x "$HOME/.local/bin/tmux-*.sh" "$HOME/.local/bin/codex-quota-poll.sh" "$HOME/.local/bin/codex-quota-set"
 
 cp tmux-backup/systemd/*.service /etc/systemd/system/
 cp tmux-backup/systemd/*.timer /etc/systemd/system/
@@ -73,20 +88,20 @@ fi
 # 선택: 레거시 poll timer
 systemctl enable --now codex-quota-poll.timer
 
-tmux source-file /root/.tmux.conf || true
+tmux source-file "$HOME/.tmux.conf" || true
 ```
 
-## 5. AI Agent 실행 가이드
+## 6. AI Agent 실행 가이드
 
 아래 절차를 **순서대로 실행**하도록 AI에게 지시하세요.
 
-### 5.1 작업 원칙
+### 6.1 작업 원칙
 
 - 멱등성: 이미 적용된 상태여도 재실행 가능해야 함
 - 보안: 인증 파일 내용 출력/로그 노출 금지
 - 검증: 적용 후 서비스/옵션 확인 명령까지 실행
 
-### 5.2 설치 전 필수 질문 (반드시 먼저 질문)
+### 6.2 설치 전 필수 질문 (반드시 먼저 질문)
 
 AI는 설치를 시작하기 전에 아래 5가지를 **반드시 먼저 질문**하고 답변을 확정해야 합니다.
 
@@ -98,7 +113,7 @@ AI는 설치를 시작하기 전에 아래 5가지를 **반드시 먼저 질문*
 
 참고: Copilot 쿼터 표시는 `~/.local/share/opencode/auth.json`의 provider `github-copilot` 인증정보를 읽습니다.
 
-### 5.3 AI가 실행할 체크 + 적용 절차
+### 6.3 AI가 실행할 체크 + 적용 절차
 
 ```bash
 set -euo pipefail
@@ -110,7 +125,7 @@ command -v systemctl >/dev/null
 command -v jq >/dev/null || true
 command -v curl >/dev/null || true
 
-# A) 사용자 답변 입력 (반드시 5.2 질문에 대한 확정값 사용)
+# A) 사용자 답변 입력 (반드시 6.2 질문에 대한 확정값 사용)
 SHOW_CODEX="yes"              # yes | no
 CODEX_AUTH_SOURCE="codex-cli" # codex-cli | opencode (SHOW_CODEX=yes 일 때만 의미 있음)
 SHOW_ZAI="yes"                # yes | no
@@ -118,10 +133,11 @@ SHOW_COPILOT="yes"            # yes | no
 USE_TMUX_WEB="yes"            # yes | no
 
 # 1) 파일 배치
-install -d -m 755 /root/.local/bin
-cp tmux-backup/home/tmux.conf /root/.tmux.conf
-cp tmux-backup/bin/* /root/.local/bin/
-chmod +x /root/.local/bin/tmux-*.sh /root/.local/bin/codex-quota-poll.sh /root/.local/bin/codex-quota-set /root/.local/bin/tmux-configure-quota-visibility.sh
+install -d -m 755 "$HOME/.local/bin"
+cp tmux-backup/home/tmux.conf "$HOME/.tmux.conf"
+cp tmux-backup/bin/* "$HOME/.local/bin/"
+cp tmux-backup/lib/tmux-quota-common.sh "$HOME/.local/bin/"
+chmod +x "$HOME/.local/bin/tmux-*.sh" "$HOME/.local/bin/codex-quota-poll.sh" "$HOME/.local/bin/codex-quota-set" "$HOME/.local/bin/tmux-configure-quota-visibility.sh"
 
 # 2) systemd 배치
 cp tmux-backup/systemd/*.service /etc/systemd/system/
@@ -142,13 +158,13 @@ fi
 
 # 4) 답변 기반 quota/auth/ZAI 설정 반영
 if [[ "$SHOW_CODEX" == "yes" ]]; then
-  /root/.local/bin/tmux-configure-quota-visibility.sh \
+  "$HOME/.local/bin/tmux-configure-quota-visibility.sh" \
     --show-codex yes \
     --codex-auth-source "$CODEX_AUTH_SOURCE" \
     --show-zai "$SHOW_ZAI" \
     --show-copilot "$SHOW_COPILOT"
 else
-  /root/.local/bin/tmux-configure-quota-visibility.sh \
+  "$HOME/.local/bin/tmux-configure-quota-visibility.sh" \
     --show-codex no \
     --show-zai "$SHOW_ZAI" \
     --show-copilot "$SHOW_COPILOT"
@@ -162,7 +178,7 @@ else
 fi
 
 # 6) tmux 반영
-tmux source-file /root/.tmux.conf || true
+tmux source-file "$HOME/.tmux.conf" || true
 
 # 7) 검증
 if [[ "$USE_TMUX_WEB" == "yes" ]]; then
@@ -180,30 +196,30 @@ tmux list-keys -T root | grep MouseDown1Status
 tmux list-keys -T prefix | grep 'bind-key -T prefix g '
 ```
 
-### 5.4 실패 시 AI가 보고해야 할 항목
+### 6.4 실패 시 AI가 보고해야 할 항목
 
 - 어떤 명령이 실패했는지
 - 실패 원인(권한/패키지 누락/서비스 이름 충돌 등)
 - 재시도에 필요한 최소 조치 1~2개
 
-## 6. AI에게 전달할 프롬프트 템플릿
+## 7. AI에게 전달할 프롬프트 템플릿
 
 아래 텍스트를 AI Agent에 그대로 전달하면 됩니다.
 
 ```text
 /root/Tmux-Setup/README.md를 기준으로 이 저장소의 tmux 백업을 현재 시스템에 적용해줘.
-설치 시작 전에 README 5.2의 5가지 질문을 먼저 사용자에게 하고 답변을 확정한 뒤 진행해.
-반드시 "5. AI Agent 실행 가이드" 절차대로 실행하고, 각 단계 결과를 요약해.
+설치 시작 전에 README 6.2의 5가지 질문을 먼저 사용자에게 하고 답변을 확정한 뒤 진행해.
+반드시 "6. AI Agent 실행 가이드" 절차대로 실행하고, 각 단계 결과를 요약해.
 민감정보 값은 출력하지 말고, 마지막에 검증 명령 결과(성공/실패)만 보고해.
 실패가 있으면 원인과 재시도 최소 조치를 제시해.
 ```
 
-## 7. 운영 확인 명령
+## 8. 운영 확인 명령
 
 ```bash
 systemctl is-active ttyd-tmux.service tmux-zai-key-bootstrap.service
 systemctl show -p Result --value tmux-zai-key-bootstrap.service
 tmux show-environment -g ZAI_API_KEY
-/root/.local/bin/tmux-zai-quota.sh
-/root/.local/bin/tmux-codex-quota.sh
+"$HOME/.local/bin/tmux-zai-quota.sh"
+"$HOME/.local/bin/tmux-codex-quota.sh"
 ```
