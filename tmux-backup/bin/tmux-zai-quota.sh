@@ -29,11 +29,11 @@ format_left() {
     days=$((total_hours / 24))
     hours=$((total_hours % 24))
     if (( days > 0 )); then
-        printf '%dD%dH%dM' "$days" "$hours" "$mins"
+        printf '%dd%dh%dm' "$days" "$hours" "$mins"
     elif (( hours > 0 )); then
-        printf '%dH%dM' "$hours" "$mins"
+        printf '%dh%dm' "$hours" "$mins"
     else
-        printf '%dM' "$mins"
+        printf '%dm' "$mins"
     fi
 }
 
@@ -118,7 +118,7 @@ tools_remaining="$(jq -r '.data.limits[]? | select(.type=="TIME_LIMIT" and .unit
 tools_reset_ms="$(jq -r '.data.limits[]? | select(.type=="TIME_LIMIT" and .unit==5) | .nextResetTime // empty' <<<"$response" 2>/dev/null || true)"
 
 five_alert=0
-five_segment="$(unknown_segment '5H')"
+five_segment="$(unknown_segment '5h')"
 if is_int "$five_used"; then
     five_remain=$((100 - five_used))
     if (( five_remain < 0 )); then
@@ -134,11 +134,11 @@ if is_int "$five_used"; then
         five_alert=1
     fi
 
-    five_segment="$(segment '5H' "$five_remain" "$five_left_text" "$five_alert")"
+    five_segment="$(segment '5h' "$five_remain" "$five_left_text" "$five_alert")"
 fi
 
 seven_alert=0
-seven_segment="$(unknown_segment '7D')"
+seven_segment="$(unknown_segment '7d')"
 if is_int "$seven_used"; then
     seven_remain=$((100 - seven_used))
     if (( seven_remain < 0 )); then
@@ -161,11 +161,11 @@ if is_int "$seven_used"; then
         fi
     fi
 
-    seven_segment="$(segment '7D' "$seven_remain" "$seven_left_text" "$seven_alert")"
+    seven_segment="$(segment '7d' "$seven_remain" "$seven_left_text" "$seven_alert")"
 fi
 
 tools_alert=0
-tools_segment="$(unknown_segment '30D')"
+tools_segment="$(unknown_segment '30d')"
 tools_used_calc=''
 if is_int "$tools_used_pct"; then
     tools_used_calc="$tools_used_pct"
@@ -204,7 +204,7 @@ if is_int "$tools_used_calc"; then
         fi
     fi
 
-    tools_segment="$(segment '30D' "$tools_remain" "$tools_left_text" "$tools_alert")"
+    tools_segment="$(segment '30d' "$tools_remain" "$tools_left_text" "$tools_alert")"
 fi
 
 summary_text="${five_segment} | ${seven_segment} | ${tools_segment}"
