@@ -23,9 +23,10 @@ tmux-backup/
 │  ├─ tmux-codex-quota.sh
 │  ├─ tmux-zai-quota.sh
 │  ├─ tmux-copilot-quota.sh
+│  ├─ tmux-alibaba-quota.sh   # Alibaba Coding Plan 쿼터
 │  ├─ tmux-load-opencode-key.sh
 │  ├─ tmux-status-click.sh
-│  └─ ... (총 18개)
+│  └─ ... (총 19개)
 └─ systemd/
    ├─ ttyd-tmux.service
    ├─ tmux-zai-key-bootstrap.service
@@ -53,6 +54,33 @@ tmux-backup/
 | `TMUX_CONF_FILE` | `~/.tmux.conf` | tmux 설정 파일 경로 |
 | `CODEX_QUOTA_CACHE_FILE` | (자동) | Codex 쿼터 캐시 파일 |
 | `COPILOT_QUOTA_CACHE_FILE` | (자동) | Copilot 쿼터 캐시 파일 |
+| `ALIBABA_QUOTA_CACHE_FILE` | (자동) | Alibaba 쿼터 캐시 파일 |
+| `ALIBABA_QUOTA_CACHE_FILE` | (자동) | Alibaba 쿼터 캐시 파일 |
+| `ALIBABA_QUOTA_CACHE_FILE` | (자동) | Alibaba 쿼터 캐시 파일 |
+| `ALIBABA_QUOTA_CACHE_FILE` | (자동) | Alibaba 쿼터 캐시 파일 |
+| `ALIBABA_QUOTA_CACHE_FILE` | (자동) | Alibaba 쿼터 캐시 파일 |
+| `ALIBABA_QUOTA_CACHE_FILE` | (자동) | Alibaba 쿼터 캐시 파일 |
+| `ALIBABA_QUOTA_CACHE_FILE` | (자동) | Alibaba 쿼터 캐시 파일 |
+| `ALIBABA_QUOTA_CACHE_FILE` | (자동) | Alibaba 쿼터 캐시 파일 |
+| `ALIBABA_QUOTA_CACHE_FILE` | (자동) | Alibaba 쿼터 캐시 파일 |
+| `ALIBABA_QUOTA_CACHE_FILE` | (자동) | Alibaba 쿼터 캐시 파일 |
+| `ALIBABA_QUOTA_CACHE_FILE` | (자동) | Alibaba 쿼터 캐시 파일 |
+| `ALIBABA_QUOTA_CACHE_FILE` | (자동) | Alibaba 쿼터 캐시 파일 |
+| `ALIBABA_QUOTA_CACHE_FILE` | (자동) | Alibaba 쿼터 캐시 파일 |
+| `ALIBABA_QUOTA_CACHE_FILE` | (자동) | Alibaba 쿼터 캐시 파일 |
+| `ALIBABA_QUOTA_CACHE_FILE` | (자동) | Alibaba 쿼터 캐시 파일 |
+| `ALIBABA_QUOTA_CACHE_FILE` | (자동) | Alibaba 쿼터 캐시 파일 |
+| `ALIBABA_QUOTA_CACHE_FILE` | (자동) | Alibaba 쿼터 캐시 파일 |
+| `ALIBABA_QUOTA_CACHE_FILE` | (자동) | Alibaba 쿼터 캐시 파일 |
+| `ALIBABA_QUOTA_CACHE_FILE` | (자동) | Alibaba 쿼터 캐시 파일 |
+| `ALIBABA_QUOTA_CACHE_FILE` | (자동) | Alibaba 쿼터 캐시 파일 |
+| `ALIBABA_QUOTA_CACHE_FILE` | (자동) | Alibaba 쿼터 캐시 파일 |
+| `ALIBABA_QUOTA_CACHE_FILE` | (자동) | Alibaba 쿼터 캐시 파일 |
+| `ALIBABA_QUOTA_CACHE_FILE` | (자동) | Alibaba 쿼터 캐시 파일 |
+| `ALIBABA_QUOTA_CACHE_FILE` | (자동) | Alibaba 쿼터 캐시 파일 |
+| `ALIBABA_QUOTA_CACHE_FILE` | (자동) | Alibaba 쿼터 캐시 파일 |
+| `ALIBABA_QUOTA_CACHE_FILE` | (자동) | Alibaba 쿼터 캐시 파일 |
+| `ALIBABA_QUOTA_CACHE_FILE` | (자동) | Alibaba 쿼터 캐시 파일 |
 
 ## 5. 사람이 직접 복구하는 방법
 
@@ -103,15 +131,17 @@ tmux source-file "$HOME/.tmux.conf" || true
 
 ### 6.2 설치 전 필수 질문 (반드시 먼저 질문)
 
-AI는 설치를 시작하기 전에 아래 5가지를 **반드시 먼저 질문**하고 답변을 확정해야 합니다.
+AI는 설치를 시작하기 전에 아래 6가지를 **반드시 먼저 질문**하고 답변을 확정해야 합니다.
 
 1. Codex 쿼터를 표시할까요? (`yes`/`no`)
 2. (1이 `yes`인 경우만) Codex 인증정보를 어디서 읽을까요? (`codex-cli`/`opencode`)
 3. Z.AI 쿼터를 표시할까요? (`yes`/`no`)
 4. Copilot 쿼터를 표시할까요? (`yes`/`no`)
-5. tmux 웹(`ttyd-tmux`)을 사용할까요? (`yes`/`no`)
+5. Alibaba Coding Plan 쿼터를 표시할까요? (`yes`/`no`)
+6. tmux 웹(`ttyd-tmux`)을 사용할까요? (`yes`/`no`)
 
 참고: Copilot 쿼터 표시는 `~/.local/share/opencode/auth.json`의 provider `github-copilot` 인증정보를 읽습니다.
+참고: Alibaba 쿼터 표시는 `~/.local/share/opencode/auth.json`의 provider `alibaba-coding-plan` 인증정보를 읽습니다.
 
 ### 6.3 AI가 실행할 체크 + 적용 절차
 
@@ -130,6 +160,7 @@ SHOW_CODEX="yes"              # yes | no
 CODEX_AUTH_SOURCE="codex-cli" # codex-cli | opencode (SHOW_CODEX=yes 일 때만 의미 있음)
 SHOW_ZAI="yes"                # yes | no
 SHOW_COPILOT="yes"            # yes | no
+SHOW_ALIBABA="yes"            # yes | no
 USE_TMUX_WEB="yes"            # yes | no
 
 # 1) 파일 배치
@@ -162,12 +193,14 @@ if [[ "$SHOW_CODEX" == "yes" ]]; then
     --show-codex yes \
     --codex-auth-source "$CODEX_AUTH_SOURCE" \
     --show-zai "$SHOW_ZAI" \
-    --show-copilot "$SHOW_COPILOT"
+    --show-copilot "$SHOW_COPILOT" \
+    --show-alibaba "$SHOW_ALIBABA"
 else
   "$HOME/.local/bin/tmux-configure-quota-visibility.sh" \
     --show-codex no \
     --show-zai "$SHOW_ZAI" \
-    --show-copilot "$SHOW_COPILOT"
+    --show-copilot "$SHOW_COPILOT" \
+    --show-alibaba "$SHOW_ALIBABA"
 fi
 
 # 5) 레거시 codex poll timer(선택)
@@ -222,4 +255,5 @@ systemctl show -p Result --value tmux-zai-key-bootstrap.service
 tmux show-environment -g ZAI_API_KEY
 "$HOME/.local/bin/tmux-zai-quota.sh"
 "$HOME/.local/bin/tmux-codex-quota.sh"
+"$HOME/.local/bin/tmux-alibaba-quota.sh"
 ```

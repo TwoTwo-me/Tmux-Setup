@@ -22,6 +22,7 @@ Usage:
     --codex-auth-source codex-cli|opencode \
     --show-zai yes|no \
     [--show-copilot yes|no] \
+    [--show-alibaba yes|no] \
     [--tmux-conf ~/.tmux.conf] \
     [--apply-services yes|no] \
     [--source-tmux yes|no]
@@ -55,6 +56,7 @@ normalize_auth_source() {
 show_codex=''
 show_zai=''
 show_copilot='no'
+show_alibaba='no'
 codex_auth_source=''
 
 # Get configurable paths
@@ -94,6 +96,14 @@ while [[ $# -gt 0 ]]; do
         --show-copilot)
             show_copilot="$(normalize_bool "${2:-}")" || {
                 printf 'Invalid --show-copilot value: %s\n' "${2:-}" >&2
+                usage >&2
+                exit 1
+            }
+            shift 2
+            ;;
+        --show-alibaba)
+            show_alibaba="$(normalize_bool "${2:-}")" || {
+                printf 'Invalid --show-alibaba value: %s\n' "${2:-}" >&2
                 usage >&2
                 exit 1
             }
@@ -153,6 +163,7 @@ left_segment="#[align=left]#[fg=colour252]#(${bin_dir}/tmux-path-right.sh \"#{pa
 codex_segment="#[bg=colour52,fg=colour231,bold] CODEX #[default] #(${bin_dir}/tmux-codex-quota.sh)"
 zai_segment="#[bg=colour22,fg=colour231,bold] Z.AI #[default] #(${bin_dir}/tmux-zai-quota.sh)"
 copilot_segment="#[bg=colour17,fg=colour231,bold] COPILOT #[default] #(${bin_dir}/tmux-copilot-quota.sh)"
+alibaba_segment="#[bg=colour88,fg=colour231,bold] ALIBABA #[default] #(${bin_dir}/tmux-alibaba-quota.sh)"
 separator=' #[fg=colour245]│#[default] '
 
 right_segment=''
@@ -170,6 +181,12 @@ if [[ "$show_copilot" == 'yes' ]]; then
         right_segment+="$separator"
     fi
     right_segment+="$copilot_segment"
+fi
+if [[ "$show_alibaba" == 'yes' ]]; then
+    if [[ -n "$right_segment" ]]; then
+        right_segment+="$separator"
+    fi
+    right_segment+="$alibaba_segment"
 fi
 if [[ -z "$right_segment" ]]; then
     right_segment='#[fg=colour244] quota off #[default]'
@@ -242,7 +259,7 @@ if [[ "$source_tmux" == 'yes' ]] && command -v tmux >/dev/null 2>&1; then
     tmux source-file "$tmux_conf" >/dev/null 2>&1 || true
 fi
 
-printf 'Configured quota visibility: codex=%s, zai=%s, copilot=%s\n' "$show_codex" "$show_zai" "$show_copilot"
+printf 'Configured quota visibility: codex=%s, zai=%s, copilot=%s, alibaba=%s\n' "$show_codex" "$show_zai" "$show_copilot" "$show_alibaba"
 if [[ "$show_codex" == 'yes' ]]; then
     printf 'Codex auth source: %s\n' "$codex_auth_source"
 fi
